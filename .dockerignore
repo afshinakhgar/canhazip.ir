@@ -1,0 +1,10 @@
+# Exclude PHP vendor directory from Docker build context
+vendor/
+public/*.php
+composer.json
+composer.lock
+
+# Exclude other non-Go files
+*.md
+.env
+.git
