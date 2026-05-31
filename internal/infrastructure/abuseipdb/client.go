@@ -12,7 +12,7 @@ import (
 
 const (
 	apiURL  = "https://api.abuseipdb.com/api/v2/check"
-	timeout = 2 * time.Second
+	timeout = 500 * time.Millisecond
 )
 
 // Client calls the AbuseIPDB v2 API.

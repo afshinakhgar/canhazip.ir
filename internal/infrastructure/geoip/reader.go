@@ -3,6 +3,7 @@ package geoip
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/oschwald/geoip2-golang"
 	ipdomain "iplocation.sabaai.ir/internal/domain/ip"
@@ -71,9 +72,22 @@ func (r *Reader) Lookup(ipStr string) (*ipdomain.IPInfo, error) {
 	}
 
 	if r.abuse != nil {
-		rep, err := r.abuse.LookupReputation(ipStr)
-		if err == nil && rep != nil {
-			info.Reputation = *rep
+		type result struct{ rep *ipdomain.Reputation }
+		ch := make(chan result, 1)
+		go func() {
+			rep, err := r.abuse.LookupReputation(ipStr)
+			if err != nil || rep == nil {
+				ch <- result{}
+				return
+			}
+			ch <- result{rep}
+		}()
+		select {
+		case res := <-ch:
+			if res.rep != nil {
+				info.Reputation = *res.rep
+			}
+		case <-time.After(600 * time.Millisecond):
 		}
 	}
 
