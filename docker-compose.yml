@@ -2,32 +2,24 @@ version: '3.9'
 services:
   api:
     build: .
+    container_name: canhazip_api
     env_file: .env
     depends_on:
       - redis
     restart: unless-stopped
     networks:
-      - app
+      - internal
+      - gateway_net
 
   redis:
     image: redis:7-alpine
+    container_name: canhazip_redis
     restart: unless-stopped
     networks:
-      - app
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - api
-    restart: unless-stopped
-    networks:
-      - app
+      - internal
 
 networks:
-  app:
+  internal:
     driver: bridge
+  gateway_net:
+    external: true

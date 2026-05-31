@@ -2,3 +2,5 @@
 .DS_Store
 vendor/
 **/*.mmdb
+api_linux
+certs/
