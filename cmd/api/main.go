@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"iplocation.sabaai.ir/internal/application"
 	"iplocation.sabaai.ir/internal/config"
+	"iplocation.sabaai.ir/internal/infrastructure/banlist"
 	"iplocation.sabaai.ir/internal/infrastructure/blocklist"
 	"iplocation.sabaai.ir/internal/infrastructure/email"
 	"iplocation.sabaai.ir/internal/infrastructure/geoip"
@@ -54,6 +55,9 @@ func main() {
 	// Initialise request logger (Redis-backed ring buffer).
 	reqLogger := requestlog.New(rdb)
 
+	// Initialise IP ban list (Redis-backed set).
+	bl := banlist.New(rdb)
+
 	// Wire up repositories and services.
 	ipSvc := application.NewIPService(geoReader)
 	whoisRepo := whoisinfra.NewClient()
@@ -66,7 +70,7 @@ func main() {
 	router := httpinterface.NewRouter(
 		cfg, rdb,
 		ipSvc, domainSvc, whoisSvc, emailSvc,
-		reqLogger, blChecker, cfg.AdminToken,
+		reqLogger, blChecker, bl, cfg.AdminToken,
 	)
 
 	addr := ":" + cfg.Port

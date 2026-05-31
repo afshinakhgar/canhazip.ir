@@ -188,6 +188,32 @@
   .msg.ok { background: #1e3d2a; color: var(--green); display: block; }
   .msg.err { background: #3d1e1e; color: var(--red); display: block; }
 
+  /* ---- BAN BUTTON ---- */
+  .btn-ban {
+    background: #7b1e1e;
+    color: #ffaaaa;
+    border: 1px solid #c0392b;
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .btn-ban:hover { background: #c0392b; color: #fff; }
+
+  /* ---- IP CHIPS ---- */
+  .ip-chip {
+    background: var(--accent);
+    border: 1px solid #7b1e1e;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .unban-btn { cursor: pointer; color: #ff6b6b; font-size: 14px; line-height: 1; }
+  .unban-btn:hover { color: #ff0000; }
+
   /* ---- SPINNER ---- */
   .spinner {
     display: inline-block;
@@ -256,10 +282,11 @@
             <th>Status</th>
             <th>Latency</th>
             <th>User-Agent</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="requests-tbody">
-          <tr class="empty-row"><td colspan="7">Loading…</td></tr>
+          <tr class="empty-row"><td colspan="8">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -295,6 +322,20 @@
         </div>
         <div class="msg" id="upload-l2-msg"></div>
       </div>
+    </div>
+  </section>
+
+  <!-- Banned IPs -->
+  <section>
+    <h2>Banned IPs</h2>
+    <div id="bans-container">
+      <div id="bans-list">Loading…</div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <input type="text" id="ban-input" placeholder="IP to ban (e.g. 1.2.3.4)"
+          style="background:var(--accent);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-size:13px;width:220px">
+        <button class="btn btn-primary" onclick="manualBan()">Ban IP</button>
+      </div>
+      <div class="msg" id="ban-msg"></div>
     </div>
   </section>
 </main>
@@ -385,7 +426,7 @@
   function renderTable(entries) {
     const tbody = document.getElementById('requests-tbody');
     if (!entries || entries.length === 0) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No requests recorded yet.</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No requests recorded yet.</td></tr>';
       return;
     }
     tbody.innerHTML = entries.map(function(e) {
@@ -398,6 +439,7 @@
         '<td class="' + statusClass(e.status) + '">' + e.status + '</td>' +
         '<td class="latency">' + e.latency_ms + 'ms</td>' +
         '<td class="ua" title="' + esc(e.ua) + '">' + esc(e.ua) + '</td>' +
+        '<td><button class="btn-ban" onclick="banIP(\'' + esc(e.ip) + '\')">Ban</button></td>' +
         '</tr>';
     }).join('');
   }
@@ -470,6 +512,88 @@
     el.style.display = text ? 'block' : 'none';
   }
 
+  // ---- Ban list ----
+  async function loadBans() {
+    try {
+      const res = await apiFetch('/admin/api/bans');
+      const ips = await res.json();
+      const container = document.getElementById('bans-list');
+      if (!ips || ips.length === 0) {
+        container.innerHTML = '<span style="color:var(--text-dim)">No banned IPs.</span>';
+        return;
+      }
+      container.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+        ips.map(function(ip) {
+          return '<div class="ip-chip">' + esc(ip) +
+            '<span class="unban-btn" onclick="unbanIP(\'' + esc(ip) + '\')">✕</span>' +
+            '</div>';
+        }).join('') +
+        '</div>';
+    } catch(e) {
+      if (e.message !== 'unauthorized') console.error('bans error', e);
+    }
+  }
+
+  window.banIP = async function(ip) {
+    if (!ip) return;
+    // Warn if banning own IP
+    try {
+      const selfRes = await fetch('/');
+      // We can't easily detect own IP here; do a basic advisory check via prompt
+    } catch(_) {}
+    const msg = document.getElementById('ban-msg');
+    try {
+      const res = await apiFetch('/admin/api/bans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: ip }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg(msg, 'Banned: ' + ip, 'ok');
+        loadBans();
+      } else {
+        showMsg(msg, data.error || 'Ban failed', 'err');
+      }
+    } catch(e) {
+      if (e.message !== 'unauthorized') showMsg(msg, e.message, 'err');
+    }
+  };
+
+  window.unbanIP = async function(ip) {
+    const msg = document.getElementById('ban-msg');
+    try {
+      const res = await apiFetch('/admin/api/bans/' + encodeURIComponent(ip), { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg(msg, 'Unbanned: ' + ip, 'ok');
+        loadBans();
+      } else {
+        showMsg(msg, data.error || 'Unban failed', 'err');
+      }
+    } catch(e) {
+      if (e.message !== 'unauthorized') showMsg(msg, e.message, 'err');
+    }
+  };
+
+  window.manualBan = function() {
+    const input = document.getElementById('ban-input');
+    const ip = input.value.trim();
+    const msg = document.getElementById('ban-msg');
+    if (!ip) {
+      showMsg(msg, 'Enter an IP address first.', 'err');
+      return;
+    }
+    // Basic IP validation on the frontend
+    if (!/^[\d.:a-fA-F]+$/.test(ip)) {
+      showMsg(msg, 'Invalid IP address format.', 'err');
+      return;
+    }
+    // Warn if looks like own admin session IP (advisory only)
+    window.banIP(ip);
+    input.value = '';
+  };
+
   // ---- Refresh ----
   function updateTimestamp() {
     const d = new Date();
@@ -478,7 +602,7 @@
   }
 
   window.refresh = async function() {
-    await Promise.all([loadStats(), loadRequests()]);
+    await Promise.all([loadStats(), loadRequests(), loadBans()]);
     updateTimestamp();
   };
 

@@ -4,11 +4,13 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"iplocation.sabaai.ir/internal/infrastructure/banlist"
 	"iplocation.sabaai.ir/internal/infrastructure/blocklist"
 	"iplocation.sabaai.ir/internal/infrastructure/requestlog"
 )
@@ -20,11 +22,12 @@ var indexHTML []byte
 type Handler struct {
 	logger    *requestlog.Logger
 	blocklist *blocklist.Checker
+	banlist   *banlist.BanList
 }
 
-// NewHandler creates a Handler wired to the given logger and blocklist checker.
-func NewHandler(logger *requestlog.Logger, bl *blocklist.Checker) *Handler {
-	return &Handler{logger: logger, blocklist: bl}
+// NewHandler creates a Handler wired to the given logger, blocklist checker, and ban list.
+func NewHandler(logger *requestlog.Logger, bl *blocklist.Checker, bans *banlist.BanList) *Handler {
+	return &Handler{logger: logger, blocklist: bl, banlist: bans}
 }
 
 // ServeIndex serves the admin HTML page (no auth required).
@@ -38,6 +41,9 @@ func (h *Handler) RegisterAPI(rg *gin.RouterGroup) {
 	rg.GET("/requests", h.getRequests)
 	rg.POST("/blocklist/reload", h.reloadBlocklist)
 	rg.POST("/blocklist/upload", h.uploadBlocklist)
+	rg.GET("/bans", h.getBans)
+	rg.POST("/bans", h.banIP)
+	rg.DELETE("/bans/:ip", h.unbanIP)
 }
 
 // GET /admin/api/stats
@@ -175,4 +181,59 @@ func (h *Handler) uploadBlocklist(c *gin.Context) {
 		"level1_path":  l1p,
 		"level2_path":  l2p,
 	})
+}
+
+// GET /admin/api/bans
+func (h *Handler) getBans(c *gin.Context) {
+	if h.banlist == nil {
+		c.JSON(http.StatusOK, []string{})
+		return
+	}
+	ips, err := h.banlist.List()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if ips == nil {
+		ips = []string{}
+	}
+	c.JSON(http.StatusOK, ips)
+}
+
+// POST /admin/api/bans — body: {"ip":"1.2.3.4"}
+func (h *Handler) banIP(c *gin.Context) {
+	if h.banlist == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "banlist not initialised"})
+		return
+	}
+	var body struct {
+		IP string `json:"ip"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON body"})
+		return
+	}
+	if net.ParseIP(body.IP) == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid IP address"})
+		return
+	}
+	if err := h.banlist.Ban(body.IP); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "ip": body.IP})
+}
+
+// DELETE /admin/api/bans/:ip
+func (h *Handler) unbanIP(c *gin.Context) {
+	if h.banlist == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "banlist not initialised"})
+		return
+	}
+	ip := c.Param("ip")
+	if err := h.banlist.Unban(ip); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
