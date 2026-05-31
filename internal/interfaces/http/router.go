@@ -5,6 +5,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"iplocation.sabaai.ir/internal/application"
 	"iplocation.sabaai.ir/internal/config"
+	"iplocation.sabaai.ir/internal/infrastructure/blocklist"
+	"iplocation.sabaai.ir/internal/infrastructure/requestlog"
+	"iplocation.sabaai.ir/internal/interfaces/http/admin"
 	"iplocation.sabaai.ir/internal/interfaces/http/handlers"
 	"iplocation.sabaai.ir/internal/interfaces/http/middleware"
 )
@@ -17,10 +20,14 @@ func NewRouter(
 	domainSvc *application.DomainService,
 	whoisSvc *application.WhoisService,
 	emailSvc *application.EmailService,
+	reqLogger *requestlog.Logger,
+	blChecker *blocklist.Checker,
+	adminToken string,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(corsMiddleware())
+	r.Use(middleware.RequestLogger(reqLogger))
 
 	ipHandler := handlers.NewIPHandler(ipSvc)
 	domainHandler := handlers.NewDomainHandler(domainSvc)
@@ -42,6 +49,11 @@ func NewRouter(
 
 	// GET /email/:email
 	r.GET("/email/:email", middleware.RateLimit(rdb, cfg.RateLimitEmail), emailHandler.GetEmail)
+
+	// Admin panel — no rate limiting, protected by token auth.
+	adm := r.Group("/admin")
+	adm.Use(admin.TokenAuth(adminToken))
+	admin.NewHandler(reqLogger, blChecker).Register(adm)
 
 	return r
 }

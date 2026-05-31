@@ -11,6 +11,7 @@ import (
 	"iplocation.sabaai.ir/internal/infrastructure/blocklist"
 	"iplocation.sabaai.ir/internal/infrastructure/email"
 	"iplocation.sabaai.ir/internal/infrastructure/geoip"
+	"iplocation.sabaai.ir/internal/infrastructure/requestlog"
 	whoisinfra "iplocation.sabaai.ir/internal/infrastructure/whois"
 	httpinterface "iplocation.sabaai.ir/internal/interfaces/http"
 )
@@ -50,6 +51,9 @@ func main() {
 		log.Printf("Redis connected at %s", cfg.RedisAddr)
 	}
 
+	// Initialise request logger (Redis-backed ring buffer).
+	reqLogger := requestlog.New(rdb)
+
 	// Wire up repositories and services.
 	ipSvc := application.NewIPService(geoReader)
 	whoisRepo := whoisinfra.NewClient()
@@ -59,7 +63,11 @@ func main() {
 	emailSvc := application.NewEmailService(emailRepo)
 
 	// Build router and start server.
-	router := httpinterface.NewRouter(cfg, rdb, ipSvc, domainSvc, whoisSvc, emailSvc)
+	router := httpinterface.NewRouter(
+		cfg, rdb,
+		ipSvc, domainSvc, whoisSvc, emailSvc,
+		reqLogger, blChecker, cfg.AdminToken,
+	)
 
 	addr := ":" + cfg.Port
 	log.Printf("Starting server on %s", addr)

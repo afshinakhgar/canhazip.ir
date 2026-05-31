@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>canhazip admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a1a2e;
+    --card: #16213e;
+    --accent: #0f3460;
+    --accent2: #533483;
+    --text: #e0e0e0;
+    --text-dim: #8888aa;
+    --border: #2a2a4a;
+    --green: #4caf50;
+    --yellow: #ffb300;
+    --red: #f44336;
+    --row-alt: #1e1e38;
+    --row-hover: #252545;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ---- MODAL OVERLAY ---- */
+  #token-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  #token-modal.visible { display: flex; }
+  .modal-box {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 32px;
+    width: 360px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .modal-box h2 { margin-bottom: 12px; font-size: 18px; color: var(--text); }
+  .modal-box p { margin-bottom: 20px; color: var(--text-dim); font-size: 13px; }
+  .modal-box input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--accent);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .modal-box input:focus { outline: none; border-color: #7b5ea7; }
+  .modal-box button {
+    width: 100%;
+    padding: 10px;
+    background: var(--accent2);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .modal-box button:hover { background: #6a44a0; }
+
+  /* ---- HEADER ---- */
+  header {
+    background: var(--accent);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 18px; letter-spacing: 0.05em; }
+  header h1 span { color: #7b9fd4; font-weight: 400; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  #last-updated { font-size: 12px; color: var(--text-dim); }
+  header a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  header a:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* ---- MAIN LAYOUT ---- */
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  section { margin-bottom: 32px; }
+  h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #b0b8d0; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* ---- STAT CARDS ---- */
+  .cards { display: flex; gap: 16px; flex-wrap: wrap; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    flex: 1;
+    min-width: 180px;
+  }
+  .card .label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .card .value { font-size: 28px; font-weight: 700; color: var(--text); }
+
+  /* ---- TABLE ---- */
+  .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--accent);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody td { padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+  .status-2xx { color: var(--green); font-weight: 600; }
+  .status-3xx, .status-4xx { color: var(--yellow); font-weight: 600; }
+  .status-5xx { color: var(--red); font-weight: 600; }
+  .method { font-family: monospace; color: #7b9fd4; }
+  .path { color: var(--text); max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  .latency { color: var(--text-dim); }
+  .ua { color: var(--text-dim); max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+  .empty-row td { text-align: center; color: var(--text-dim); padding: 24px; }
+
+  /* ---- BLOCKLIST SECTION ---- */
+  .blocklist-actions { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .bl-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    flex: 1;
+    min-width: 240px;
+  }
+  .bl-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 14px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  .btn {
+    display: inline-block;
+    padding: 8px 18px;
+    border-radius: 4px;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.15s;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent2); color: #fff; }
+  .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+  .btn-secondary { background: var(--accent); color: var(--text); }
+  .btn-secondary:hover:not(:disabled) { opacity: 0.85; }
+  .upload-form { display: flex; flex-direction: column; gap: 10px; }
+  .upload-form input[type="file"] {
+    background: var(--accent);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .msg {
+    margin-top: 10px;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    display: none;
+  }
+  .msg.ok { background: #1e3d2a; color: var(--green); display: block; }
+  .msg.err { background: #3d1e1e; color: var(--red); display: block; }
+
+  /* ---- SPINNER ---- */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--text-dim);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Token modal -->
+<div id="token-modal">
+  <div class="modal-box">
+    <h2>Admin Login</h2>
+    <p>Enter your admin token to continue.</p>
+    <input type="password" id="token-input" placeholder="Bearer token" autocomplete="current-password">
+    <button onclick="saveToken()">Login</button>
+  </div>
+</div>
+
+<header>
+  <h1>canhazip <span>admin</span></h1>
+  <div class="header-right">
+    <span id="last-updated"></span>
+    <a onclick="logout()">Logout</a>
+  </div>
+</header>
+
+<main>
+  <!-- Stats -->
+  <section>
+    <h2>Overview</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="label">Total Requests</div>
+        <div class="value" id="stat-total">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Level 1 CIDRs</div>
+        <div class="value" id="stat-l1">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Level 2 CIDRs</div>
+        <div class="value" id="stat-l2">—</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recent Requests -->
+  <section>
+    <h2>Recent Requests</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>IP</th>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Status</th>
+            <th>Latency</th>
+            <th>User-Agent</th>
+          </tr>
+        </thead>
+        <tbody id="requests-tbody">
+          <tr class="empty-row"><td colspan="7">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Blocklist -->
+  <section>
+    <h2>Blocklist</h2>
+    <div class="blocklist-actions">
+      <!-- Reload -->
+      <div class="bl-card">
+        <h3>Reload from disk</h3>
+        <button class="btn btn-primary" id="reload-btn" onclick="reloadBlocklist()">Reload Blocklist</button>
+        <div class="msg" id="reload-msg"></div>
+      </div>
+
+      <!-- Upload Level 1 -->
+      <div class="bl-card">
+        <h3>Upload Level 1</h3>
+        <div class="upload-form">
+          <input type="file" id="upload-l1" accept=".netset,.txt">
+          <button class="btn btn-secondary" onclick="uploadBlocklist(1)">Upload Level 1</button>
+        </div>
+        <div class="msg" id="upload-l1-msg"></div>
+      </div>
+
+      <!-- Upload Level 2 -->
+      <div class="bl-card">
+        <h3>Upload Level 2</h3>
+        <div class="upload-form">
+          <input type="file" id="upload-l2" accept=".netset,.txt">
+          <button class="btn btn-secondary" onclick="uploadBlocklist(2)">Upload Level 2</button>
+        </div>
+        <div class="msg" id="upload-l2-msg"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function() {
+  'use strict';
+
+  // ---- Token management ----
+  function getToken() {
+    return localStorage.getItem('admin_token') || '';
+  }
+
+  window.saveToken = function() {
+    const val = document.getElementById('token-input').value.trim();
+    if (!val) return;
+    localStorage.setItem('admin_token', val);
+    document.getElementById('token-modal').classList.remove('visible');
+    refresh();
+  };
+
+  window.logout = function() {
+    localStorage.removeItem('admin_token');
+    document.getElementById('token-modal').classList.add('visible');
+    document.getElementById('token-input').value = '';
+  };
+
+  // Allow pressing Enter in token input
+  document.getElementById('token-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') window.saveToken();
+  });
+
+  // ---- Auth headers ----
+  function authHeaders() {
+    const t = getToken();
+    return t ? { 'Authorization': 'Bearer ' + t } : {};
+  }
+
+  async function apiFetch(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign(authHeaders(), opts.headers || {});
+    const res = await fetch(path, opts);
+    if (res.status === 401) {
+      logout();
+      throw new Error('unauthorized');
+    }
+    return res;
+  }
+
+  // ---- Stats ----
+  async function loadStats() {
+    try {
+      const res = await apiFetch('/admin/api/stats');
+      const data = await res.json();
+      document.getElementById('stat-total').textContent = fmt(data.total_requests);
+      document.getElementById('stat-l1').textContent = fmt(data.blocklist.level1_cidrs);
+      document.getElementById('stat-l2').textContent = fmt(data.blocklist.level2_cidrs);
+    } catch(e) {
+      if (e.message !== 'unauthorized') console.error('stats error', e);
+    }
+  }
+
+  function fmt(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString();
+  }
+
+  // ---- Requests table ----
+  async function loadRequests() {
+    try {
+      const res = await apiFetch('/admin/api/requests?limit=50');
+      const entries = await res.json();
+      renderTable(entries);
+    } catch(e) {
+      if (e.message !== 'unauthorized') console.error('requests error', e);
+    }
+  }
+
+  function statusClass(s) {
+    if (s >= 500) return 'status-5xx';
+    if (s >= 300) return 'status-3xx';
+    return 'status-2xx';
+  }
+
+  function renderTable(entries) {
+    const tbody = document.getElementById('requests-tbody');
+    if (!entries || entries.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No requests recorded yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = entries.map(function(e) {
+      const ts = e.ts ? e.ts.replace('T', ' ').replace('Z', '') : '';
+      return '<tr>' +
+        '<td>' + esc(ts) + '</td>' +
+        '<td>' + esc(e.ip) + '</td>' +
+        '<td class="method">' + esc(e.method) + '</td>' +
+        '<td class="path" title="' + esc(e.path) + '">' + esc(e.path) + '</td>' +
+        '<td class="' + statusClass(e.status) + '">' + e.status + '</td>' +
+        '<td class="latency">' + e.latency_ms + 'ms</td>' +
+        '<td class="ua" title="' + esc(e.ua) + '">' + esc(e.ua) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ---- Blocklist actions ----
+  window.reloadBlocklist = async function() {
+    const btn = document.getElementById('reload-btn');
+    const msg = document.getElementById('reload-msg');
+    btn.disabled = true;
+    showMsg(msg, '', '');
+    try {
+      const res = await apiFetch('/admin/api/blocklist/reload', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg(msg, 'Reloaded — L1: ' + fmt(data.level1_cidrs) + ', L2: ' + fmt(data.level2_cidrs), 'ok');
+        document.getElementById('stat-l1').textContent = fmt(data.level1_cidrs);
+        document.getElementById('stat-l2').textContent = fmt(data.level2_cidrs);
+      } else {
+        showMsg(msg, data.error || 'Failed', 'err');
+      }
+    } catch(e) {
+      if (e.message !== 'unauthorized') showMsg(msg, e.message, 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  window.uploadBlocklist = async function(level) {
+    const fileInput = document.getElementById('upload-l' + level);
+    const msg = document.getElementById('upload-l' + level + '-msg');
+    const file = fileInput.files[0];
+    if (!file) {
+      showMsg(msg, 'Select a file first.', 'err');
+      return;
+    }
+    showMsg(msg, '', '');
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await apiFetch('/admin/api/blocklist/upload?level=' + level, {
+        method: 'POST',
+        body: form,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg(msg, 'Uploaded & reloaded — L1: ' + fmt(data.level1_cidrs) + ', L2: ' + fmt(data.level2_cidrs), 'ok');
+        document.getElementById('stat-l1').textContent = fmt(data.level1_cidrs);
+        document.getElementById('stat-l2').textContent = fmt(data.level2_cidrs);
+        fileInput.value = '';
+      } else {
+        showMsg(msg, data.error || 'Upload failed', 'err');
+      }
+    } catch(e) {
+      if (e.message !== 'unauthorized') showMsg(msg, e.message, 'err');
+    }
+  };
+
+  function showMsg(el, text, type) {
+    el.className = 'msg' + (type ? ' ' + type : '');
+    el.textContent = text;
+    el.style.display = text ? 'block' : 'none';
+  }
+
+  // ---- Refresh ----
+  function updateTimestamp() {
+    const d = new Date();
+    document.getElementById('last-updated').textContent =
+      'Updated: ' + d.toLocaleTimeString();
+  }
+
+  window.refresh = async function() {
+    await Promise.all([loadStats(), loadRequests()]);
+    updateTimestamp();
+  };
+
+  // ---- Boot ----
+  function init() {
+    if (!getToken()) {
+      document.getElementById('token-modal').classList.add('visible');
+      return;
+    }
+    refresh();
+    setInterval(refresh, 10000);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

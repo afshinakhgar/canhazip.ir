@@ -21,6 +21,7 @@ type Config struct {
 	RateLimitWHOIS  int
 	RateLimitDomain int
 	RateLimitEmail  int
+	AdminToken      string
 }
 
 func Load() *Config {
@@ -41,6 +42,7 @@ func Load() *Config {
 		RateLimitWHOIS:  getEnvInt("RATE_LIMIT_WHOIS", 20),
 		RateLimitDomain: getEnvInt("RATE_LIMIT_DOMAIN", 20),
 		RateLimitEmail:  getEnvInt("RATE_LIMIT_EMAIL", 20),
+		AdminToken:      getEnv("ADMIN_TOKEN", ""),
 	}
 }
 
