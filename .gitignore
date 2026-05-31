@@ -1,4 +1,4 @@
 .env
 .DS_Store
 vendor/
-public/GeoLite2-*.mmdb
+**/*.mmdb

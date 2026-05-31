@@ -9,8 +9,8 @@ FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=builder /build/api .
-COPY public/GeoLite2-City.mmdb /app/data/
-COPY public/GeoLite2-ASN.mmdb /app/data/
-COPY public/GeoLite2-Country.mmdb /app/data/
+COPY php-legacy/public/GeoLite2-City.mmdb /app/data/
+COPY php-legacy/public/GeoLite2-ASN.mmdb /app/data/
+COPY php-legacy/public/GeoLite2-Country.mmdb /app/data/
 EXPOSE 8080
 CMD ["./api"]

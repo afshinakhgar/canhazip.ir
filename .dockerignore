@@ -1,8 +1,8 @@
-# Exclude PHP vendor directory from Docker build context
-vendor/
-public/*.php
-composer.json
-composer.lock
+# Exclude PHP legacy files from Docker build context (mmdb files are included)
+php-legacy/vendor/
+php-legacy/public/*.php
+php-legacy/composer.json
+php-legacy/composer.lock
 
 # Exclude other non-Go files
 *.md
