@@ -70,6 +70,12 @@ func (r *Reader) Lookup(ipStr string) (*ipdomain.IPInfo, error) {
 		ISP:      isp,
 	}
 
+	if r.abuse != nil {
+		if rep, err := r.abuse.LookupReputation(ipStr); err == nil && rep != nil {
+			info.Reputation = *rep
+		}
+	}
+
 	return info, nil
 }
 

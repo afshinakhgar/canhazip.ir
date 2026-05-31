@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"iplocation.sabaai.ir/internal/application"
 	"iplocation.sabaai.ir/internal/config"
+	"iplocation.sabaai.ir/internal/infrastructure/blocklist"
 	"iplocation.sabaai.ir/internal/infrastructure/email"
 	"iplocation.sabaai.ir/internal/infrastructure/geoip"
 	whoisinfra "iplocation.sabaai.ir/internal/infrastructure/whois"
@@ -18,8 +19,17 @@ func main() {
 	// Load configuration from .env / environment.
 	cfg := config.Load()
 
-	// Initialise GeoIP readers (no external reputation service — all local).
-	geoReader, err := geoip.NewReader(cfg.GeoIPCityDB, cfg.GeoIPASNDB, nil)
+	// Load local Firehol blocklists for offline reputation checking.
+	blChecker, err := blocklist.NewChecker(cfg.BlocklistLevel1, cfg.BlocklistLevel2)
+	if err != nil {
+		log.Printf("Warning: blocklist load failed: %v — reputation will be unknown", err)
+		blChecker = nil
+	} else {
+		log.Printf("Blocklist loaded: %s / %s", cfg.BlocklistLevel1, cfg.BlocklistLevel2)
+	}
+
+	// Initialise GeoIP readers.
+	geoReader, err := geoip.NewReader(cfg.GeoIPCityDB, cfg.GeoIPASNDB, blChecker)
 	if err != nil {
 		log.Fatalf("Failed to open GeoIP databases: %v", err)
 	}

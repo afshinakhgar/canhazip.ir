@@ -12,7 +12,8 @@ type Config struct {
 	Port            string
 	GeoIPCityDB     string
 	GeoIPASNDB      string
-	AbuseIPDBKey    string
+	BlocklistLevel1 string
+	BlocklistLevel2 string
 	RedisAddr       string
 	RedisPassword   string
 	RedisDB         int
@@ -31,7 +32,8 @@ func Load() *Config {
 		Port:            getEnv("PORT", "8080"),
 		GeoIPCityDB:     getEnv("GEOIP_CITY_DB", "/app/data/GeoLite2-City.mmdb"),
 		GeoIPASNDB:      getEnv("GEOIP_ASN_DB", "/app/data/GeoLite2-ASN.mmdb"),
-		AbuseIPDBKey:    getEnv("ABUSEIPDB_KEY", ""),
+		BlocklistLevel1: getEnv("BLOCKLIST_LEVEL1", "/app/data/firehol_level1.netset"),
+		BlocklistLevel2: getEnv("BLOCKLIST_LEVEL2", "/app/data/firehol_level2.netset"),
 		RedisAddr:       getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
 		RedisDB:         getEnvInt("REDIS_DB", 0),
