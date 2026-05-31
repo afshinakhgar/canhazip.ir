@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-05-31
+
 ### Added
-- Phase 1: Full Go rewrite with Gin, hexagonal architecture
-- IP lookup (geo + ASN + AbuseIPDB reputation)
-- Domain lookup (DNS A/MX/NS + WHOIS)
-- WHOIS lookup
-- Email reputation (syntax + MX + disposable check)
-- Redis-based per-IP rate limiting (sliding window)
-- Docker + docker-compose + Nginx deployment
+- Full Go rewrite with Gin, hexagonal architecture
+- IP lookup: geo (City/Country/Continent), ASN/ISP, lat/lon/timezone, AbuseIPDB reputation
+- Domain lookup: DNS A/MX/NS records + WHOIS summary
+- WHOIS lookup: full registrar/dates/status/nameservers + raw text
+- Email reputation: syntax validation, MX check, disposable domain detection
+- Redis sliding-window rate limiting per endpoint (configurable via .env)
+- Docker + docker-compose + Nginx reverse proxy deployment

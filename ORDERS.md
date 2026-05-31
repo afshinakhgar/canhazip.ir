@@ -2,7 +2,8 @@
 
 ## Phase 1 — Full API Rewrite in Go
 
-**Status:** In Progress  
+**Status:** Complete ✓  
+**Tag:** v0.1.0  
 **Date:** 2026-05-30
 
 ### Scope
