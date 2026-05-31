@@ -18,13 +18,17 @@ func TokenAuth(token string) gin.HandlerFunc {
 		}
 
 		// Check Authorization: Bearer <token>
-		if auth := c.GetHeader("Authorization"); auth != "" {
-			if strings.HasPrefix(auth, "Bearer ") {
-				if strings.TrimPrefix(auth, "Bearer ") == token {
-					c.Next()
-					return
-				}
+		if auth := c.GetHeader("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			if strings.TrimPrefix(auth, "Bearer ") == token {
+				c.Next()
+				return
 			}
+		}
+
+		// Check cookie (preferred — survives CDN header stripping)
+		if ck, err := c.Cookie("admin_token"); err == nil && ck == token {
+			c.Next()
+			return
 		}
 
 		// Check ?token= query param

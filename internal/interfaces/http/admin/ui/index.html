@@ -303,39 +303,42 @@
 (function() {
   'use strict';
 
-  // ---- Token management ----
-  function getToken() {
-    return localStorage.getItem('admin_token') || '';
+  // ---- Cookie helpers ----
+  function getCookie(name) {
+    const m = document.cookie.match('(?:^|;)\\s*' + name + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : '';
   }
+  function setCookie(name, val) {
+    document.cookie = name + '=' + encodeURIComponent(val) + ';path=/;SameSite=Strict';
+  }
+  function delCookie(name) {
+    document.cookie = name + '=;path=/;max-age=0';
+  }
+
+  function hasToken() { return !!getCookie('admin_token'); }
 
   window.saveToken = function() {
     const val = document.getElementById('token-input').value.trim();
     if (!val) return;
-    localStorage.setItem('admin_token', val);
+    setCookie('admin_token', val);
     document.getElementById('token-modal').classList.remove('visible');
     refresh();
   };
 
   window.logout = function() {
-    localStorage.removeItem('admin_token');
+    delCookie('admin_token');
     document.getElementById('token-modal').classList.add('visible');
     document.getElementById('token-input').value = '';
   };
 
-  // Allow pressing Enter in token input
   document.getElementById('token-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') window.saveToken();
   });
 
-  // ---- Auth headers ----
-  function authHeaders() {
-    const t = getToken();
-    return t ? { 'Authorization': 'Bearer ' + t } : {};
-  }
-
+  // Cookie is sent automatically by browser — no custom header needed.
   async function apiFetch(path, opts) {
     opts = opts || {};
-    opts.headers = Object.assign(authHeaders(), opts.headers || {});
+    opts.credentials = 'same-origin';
     const res = await fetch(path, opts);
     if (res.status === 401) {
       logout();
@@ -481,7 +484,7 @@
 
   // ---- Boot ----
   function init() {
-    if (!getToken()) {
+    if (!hasToken()) {
       document.getElementById('token-modal').classList.add('visible');
       return;
     }
