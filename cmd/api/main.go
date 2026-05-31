@@ -8,7 +8,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"iplocation.sabaai.ir/internal/application"
 	"iplocation.sabaai.ir/internal/config"
-	"iplocation.sabaai.ir/internal/infrastructure/abuseipdb"
 	"iplocation.sabaai.ir/internal/infrastructure/email"
 	"iplocation.sabaai.ir/internal/infrastructure/geoip"
 	whoisinfra "iplocation.sabaai.ir/internal/infrastructure/whois"
@@ -19,9 +18,8 @@ func main() {
 	// Load configuration from .env / environment.
 	cfg := config.Load()
 
-	// Initialise GeoIP readers.
-	abuseClient := abuseipdb.NewClient(cfg.AbuseIPDBKey)
-	geoReader, err := geoip.NewReader(cfg.GeoIPCityDB, cfg.GeoIPASNDB, abuseClient)
+	// Initialise GeoIP readers (no external reputation service — all local).
+	geoReader, err := geoip.NewReader(cfg.GeoIPCityDB, cfg.GeoIPASNDB, nil)
 	if err != nil {
 		log.Fatalf("Failed to open GeoIP databases: %v", err)
 	}
