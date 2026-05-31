@@ -27,19 +27,17 @@ func NewHandler(logger *requestlog.Logger, bl *blocklist.Checker) *Handler {
 	return &Handler{logger: logger, blocklist: bl}
 }
 
-// Register wires all admin routes onto the provided RouterGroup.
-// The group should already have TokenAuth middleware applied.
-func (h *Handler) Register(rg *gin.RouterGroup) {
-	rg.GET("/", h.serveIndex)
-	rg.GET("/api/stats", h.getStats)
-	rg.GET("/api/requests", h.getRequests)
-	rg.POST("/api/blocklist/reload", h.reloadBlocklist)
-	rg.POST("/api/blocklist/upload", h.uploadBlocklist)
+// ServeIndex serves the admin HTML page (no auth required).
+func (h *Handler) ServeIndex(c *gin.Context) {
+	c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 }
 
-// GET /admin/
-func (h *Handler) serveIndex(c *gin.Context) {
-	c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
+// RegisterAPI wires the protected API routes onto rg (already has TokenAuth).
+func (h *Handler) RegisterAPI(rg *gin.RouterGroup) {
+	rg.GET("/stats", h.getStats)
+	rg.GET("/requests", h.getRequests)
+	rg.POST("/blocklist/reload", h.reloadBlocklist)
+	rg.POST("/blocklist/upload", h.uploadBlocklist)
 }
 
 // GET /admin/api/stats

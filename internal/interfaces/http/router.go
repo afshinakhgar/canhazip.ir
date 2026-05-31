@@ -50,10 +50,12 @@ func NewRouter(
 	// GET /email/:email
 	r.GET("/email/:email", middleware.RateLimit(rdb, cfg.RateLimitEmail), emailHandler.GetEmail)
 
-	// Admin panel — no rate limiting, protected by token auth.
-	adm := r.Group("/admin")
-	adm.Use(admin.TokenAuth(adminToken))
-	admin.NewHandler(reqLogger, blChecker).Register(adm)
+	// Admin panel — HTML served publicly, API endpoints protected by token auth.
+	h := admin.NewHandler(reqLogger, blChecker)
+	r.GET("/admin/", h.ServeIndex)
+	api := r.Group("/admin/api")
+	api.Use(admin.TokenAuth(adminToken))
+	h.RegisterAPI(api)
 
 	return r
 }
